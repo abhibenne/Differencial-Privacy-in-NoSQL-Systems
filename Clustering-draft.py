@@ -7,8 +7,8 @@ myclient = pymongo.MongoClient("mongodb+srv://admin:admin@cluster1.ajaye.mongodb
 # print(myclient.list_database_names())
 mydb = myclient["public"]
 mycol = mydb["completeride"]
-print(mydb.list_collection_names())
-#print(mydb)
+# print(mydb.list_collection_names())
+# print(mydb)
 
 
 # was putting the output to my localhost 
@@ -144,7 +144,7 @@ def shuffle():
 	# mydb2.myCollection.insert(records)
 
 # cluster()
-# shuffle()
+shuffle()
 
 
 
