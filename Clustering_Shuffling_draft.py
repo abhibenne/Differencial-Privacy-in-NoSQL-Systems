@@ -101,6 +101,8 @@ def shuffle():
 	    list_index.append(index)
 	s1 = pd.Series(list_index, name='index')
 	df3 = pd.concat([s1,df2], axis=1)
+	for i, trial in df3.iterrows():
+		df3.loc[i, "relative_error"] = round(df3.loc[i, "relative_error"],1)
 	df4=df3.groupby(['relative_error'])['total_distance'].apply(list).reset_index(name='values')
 	shuffle=df4["values"]
 	for i in range(len(shuffle)):

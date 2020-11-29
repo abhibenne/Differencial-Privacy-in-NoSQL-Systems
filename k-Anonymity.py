@@ -16,10 +16,8 @@ def isKAnonymized(df, k):
     for index, row in df.iterrows():
         query = ' & '.join([f'{col} == {row[col]}' for col in df.columns])
         rows = df.query(query)
-        # print(rows)
         if (rows.shape[0] < k):
             return False
-        
     return True
 
 def generalize(df, depths):
