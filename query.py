@@ -130,6 +130,92 @@ def gs_avg(df, u, epsilon):
     
     return noisy_sum / noisy_count
 
+def gs_count(df, u, epsilon):
+    df_clipped = df.clip(upper=u)
+    
+    
+    noisy_count = laplace_mech(len(df_clipped), 1, .5*epsilon)
+    
+    return noisy_count
+
+
+def f_count(df):
+    return df.count()
+
+def saa_count(df, k, epsilon,l,u, logging=False):
+    # df = adult['Daily Mean Travel Time (Seconds)']
+    
+    # Calculate the number of rows in each chunk
+    chunk_size = int(np.ceil(df.shape[0] / k))
+    
+    if logging:
+        print(f'Chunk size: {chunk_size}')
+        
+    # Step 1: split `df` into chunks
+    xs      = [df[i:i+chunk_size] for i in range(0,df.shape[0],chunk_size)]
+    
+    # Step 2: run f on each x_i and clip its output
+    answers = [f_count(x_i) for x_i in xs]
+    
+    
+   
+    clipped_answers = np.clip(answers, l, u)
+    
+    # Step 3: take the noisy mean of the clipped answers
+    noisy_mean = laplace_mech(np.sum(clipped_answers), (u-l)/k, epsilon)
+    return noisy_mean
+
+def f_min(df):
+    return df.min()
+
+def saa_min(df, k, epsilon,l,u, logging=False):
+    # df = adult['Daily Mean Travel Time (Seconds)']
+    
+    # Calculate the number of rows in each chunk
+    chunk_size = int(np.ceil(df.shape[0] / k))
+    
+    if logging:
+        print(f'Chunk size: {chunk_size}')
+        
+    # Step 1: split `df` into chunks
+    xs      = [df[i:i+chunk_size] for i in range(0,df.shape[0],chunk_size)]
+    
+    # Step 2: run f on each x_i and clip its output
+    answers = [f_min(x_i) for x_i in xs]
+    
+    
+   
+    clipped_answers = np.clip(answers, l, u)
+    
+    # Step 3: take the noisy mean of the clipped answers
+    noisy_mean = laplace_mech(min(clipped_answers), (u-l)/k, epsilon)
+    return noisy_mean
+
+def f_max(df):
+    return df.max()
+def saa_max(df, k, epsilon,l,u, logging=False):
+    # df = adult['Daily Mean Travel Time (Seconds)']
+    
+    # Calculate the number of rows in each chunk
+    chunk_size = int(np.ceil(df.shape[0] / k))
+    
+    if logging:
+        print(f'Chunk size: {chunk_size}')
+        
+    # Step 1: split `df` into chunks
+    xs      = [df[i:i+chunk_size] for i in range(0,df.shape[0],chunk_size)]
+    
+    # Step 2: run f on each x_i and clip its output
+    answers = [f_max(x_i) for x_i in xs]
+    
+    
+   
+    clipped_answers = np.clip(answers, l, u)
+    
+    # Step 3: take the noisy mean of the clipped answers
+    noisy_mean = laplace_mech(max(clipped_answers), (u-l)/k, epsilon)
+    return noisy_mean
+
 myclient = pymongo.MongoClient("mongodb+srv://admin:admin@cluster1.ajaye.mongodb.net/")
 
 mydb = myclient["public"]
@@ -137,7 +223,7 @@ mycol = mydb["completeride"]
 # print(mydb.list_collection_names())
 
 
-query = "mycol.aggregate([{'$group' : {'_id': '', 'total_distance':{'$avg' : 1} } }])"
+query = "mycol.aggregate([{'$group' : {'_id': '', 'total_distance':{'$max' : 1} } }])"
 # "mycol.find({},{'_id':2}).limit(10)" 
 # sys.argv[1]
 
@@ -225,17 +311,29 @@ elif aggrfunc == 'avg':
 	print(str(dfcol.mean())+' is the original value')
 	avgval = saa_avg_age(dfcol, 60, 1, 0,upper,logging=True)
 	print(avgval)
-
 	epsilon = 1                # set epsilon = 1
 	delta = 1/(len(df)**2)     # set delta = 1/n^2
 	b = 0.005                  # propose a sensitivity of 0.005
-	
 	avgval2 = ptr_avg(dfcol, upper, b, epsilon, delta, logging=True)
 	print(avgval2)
-
 	avgval3  = gs_avg(dfcol, upper, epsilon)
 	print(avgval3)
+elif aggrfunc == 'count':
+	print(str(len(dfcol))+' is the original value')
+	epsilon=1
+	cval = gs_count(dfcol, upper, epsilon)
+	print(cval)
 
+	cval2 = saa_count(dfcol, 60, 1, 0,upper,logging=True)
+	print(cval2)
+elif aggrfunc == 'min':
+	print(str(dfcol.min())+' is the original value')
+	mval = saa_min(dfcol,60, 1, 0,upper,logging=True)
+	print(mval)
+elif aggrfunc == 'max':
+	print(str(dfcol.max())+' is the original value')
+	mval = saa_max(dfcol,60, 1, 0,upper,logging=True)
+	print(mval)
 
 # uncomment and align this part at end
 # try:
