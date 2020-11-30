@@ -6,6 +6,8 @@ import pandas as pd
 import numpy as np
 from scipy import stats
 import math
+import matplotlib.pyplot as plt
+plt.style.use('seaborn-whitegrid')
 
 def query_check(query):
 	pos1 = query.find('.')
@@ -45,7 +47,88 @@ def ptr_sum(df, u, b, epsilon, delta, logging=False):
     else:
         return None
 
+def gs_sum(df, u, epsilon):
+    df_clipped = df.clip(upper=u)
+    
+    noisy_sum = laplace_mech(df_clipped.sum(), u, .5*epsilon)
+   
+    print(noisy_sum)
+    print(' is from gsum')
+    return noisy_sum 
 
+def f_sum(df):
+    return df.sum()
+
+def saa_sum(df,k, epsilon,l,u, logging=False):
+    # df = adult['Daily Mean Travel Time (Seconds)']
+    
+    # Calculate the number of rows in each chunk
+    chunk_size = int(np.ceil(df.shape[0] / k))
+    
+    if logging:
+        print(f'Chunk size: {chunk_size}')
+        
+    # Step 1: split `df` into chunks
+    xs      = [df[i:i+chunk_size] for i in range(0,df.shape[0],chunk_size)]
+    
+    # Step 2: run f on each x_i and clip its output
+    answers = [f_sum(x_i) for x_i in xs]
+    
+    
+   
+    clipped_answers = np.clip(answers, l, u)
+    
+    # Step 3: take the noisy mean of the clipped answers
+    noisy_mean = laplace_mech(np.sum(clipped_answers), (u-l)/k, epsilon)
+    return noisy_mean
+
+def f_mean(df):
+    return df.mean()
+
+def saa_avg_age(df,k, epsilon,l,u, logging=False):
+    # df = adult['Daily Mean Travel Time (Seconds)']
+    
+    # Calculate the number of rows in each chunk
+    chunk_size = int(np.ceil(df.shape[0] / k))
+    
+    if logging:
+        print(f'Chunk size: {chunk_size}')
+        
+    # Step 1: split `df` into chunks
+    xs      = [df[i:i+chunk_size] for i in range(0,df.shape[0],chunk_size)]
+    
+    # Step 2: run f on each x_i and clip its output
+    answers = [f_mean(x_i) for x_i in xs]
+    
+   
+    clipped_answers = np.clip(answers, l, u)
+    
+    # Step 3: take the noisy mean of the clipped answers
+    noisy_mean = laplace_mech(np.mean(clipped_answers), (u-l)/k, epsilon)
+    return noisy_mean
+
+def ptr_avg(df, u, b, epsilon, delta, logging=False):
+    df_clipped = df.clip(upper=u)
+    k = dist_to_high_ls(df_clipped, u, b)
+
+    noisy_distance = laplace_mech(k, 1, epsilon)
+    threshold = np.log(2/delta)/(2*epsilon)
+
+    if logging:
+        print(f"Noisy distance is {noisy_distance} and threshold is {threshold}")
+
+    if noisy_distance <= threshold:
+        return laplace_mech(df_clipped.mean(), b, epsilon)
+    else:
+        return None
+
+def gs_avg(df, u, epsilon):
+    df_clipped = df.clip(upper=u)
+    
+    noisy_sum = laplace_mech(df_clipped.sum(), u, .5*epsilon)
+    noisy_count = laplace_mech(len(df_clipped), 1, .5*epsilon)
+    
+    return noisy_sum / noisy_count
 
 myclient = pymongo.MongoClient("mongodb+srv://admin:admin@cluster1.ajaye.mongodb.net/")
 
@@ -54,7 +137,7 @@ mycol = mydb["completeride"]
 # print(mydb.list_collection_names())
 
 
-query = "mycol.aggregate([{'$group' : {'_id': '', 'total_distance':{'$sum' : 1} } }])"
+query = "mycol.aggregate([{'$group' : {'_id': '', 'total_distance':{'$avg' : 1} } }])"
 # "mycol.find({},{'_id':2}).limit(10)" 
 # sys.argv[1]
 
@@ -81,8 +164,10 @@ df = pd.DataFrame(list(mycol.find()))
 
 # print(df.head())
 dfcol = df[colval]
-# print(dfcol.head())
 
+dfcol.sort_values(ascending=True)
+
+# print(dfcol.head())
 z_scores = stats.zscore(dfcol)
 
 abs_z_scores = np.abs(z_scores)
@@ -93,34 +178,64 @@ dfcol2 = dfcol[filtered_entries]
 
 x= math.ceil(dfcol2.max())
 
+plt.plot([laplace_mech(dfcol2.clip(lower=0, upper=i).sum(), i, epsilon_i) for i in range(x)]);
+# plt.show()
+plt.plot([laplace_mech(dfcol2.clip(lower=0, upper=2**i).sum(), 2**i, epsilon_i) for i in range(15)]);
+# plt.show()
 # print(x)
-w = [laplace_mech(dfcol2.clip(lower=0, upper=i).sum(), i, epsilon_i) for i in range(x)]
+w = [laplace_mech(dfcol2.clip(lower=0, upper=2**i).sum(), 2**i, epsilon_i) for i in range(15)]#[laplace_mech(dfcol2.clip(lower=0, upper=i).sum(), i, epsilon_i) for i in range(x)]
+
+# w = [laplace_mech(dfcol2.clip(lower=0, upper=i).sum(), i, epsilon_i) for i in range(x)]
 
 
-mini = 1000000
-index = 0;
-b = [0]*len(w)
-b[0] = w[0]
+# mini = 1000000
+# index = 0
+# b = [0]*len(w)
+# b[0] = w[0]
+value=0
 for i in range(1,len(w)-1):
-    b[i] = w[i]-w[i-1]
-value = 0
-mini = 100000
-for i in range(len(w)-1):
-	if(b[i]<mini):
-		mini = b[i]
-		value = i
-upper = value
+	if w[i]<w[i-1]:
+		value=i
+		break
+    # b[i] = w[i]-w[i-1]
+# value = 0
+# mini = 100000
+# for i in range(len(w)-1,0):
+# 	if(b[i]<mini):
+# 		mini = b[i]
+# 		value = i
+upper = 2**value #value
 
-print(upper)
+# for i in b:
+# 	print(i)
+
+print(str(upper)+' is the upper')
 
 
 if aggrfunc == 'sum':
-	epsilon = 1              # set epsilon = 1
+	print(str(dfcol.sum())+' is the original value of sum')
+	# gsum method 
+	epsilon = 1 
+	gs_sum(dfcol, upper, epsilon)
+	# print(gval)
+	#saa
+	saa_sum(dfcol,60, 1, 0,upper,logging=True)
+	# print(val)
+elif aggrfunc == 'avg':
+	print(str(dfcol.mean())+' is the original value')
+	avgval = saa_avg_age(dfcol, 60, 1, 0,upper,logging=True)
+	print(avgval)
+
+	epsilon = 1                # set epsilon = 1
 	delta = 1/(len(df)**2)     # set delta = 1/n^2
 	b = 0.005                  # propose a sensitivity of 0.005
 	
-	val = ptr_sum(dfcol, upper, b, epsilon, delta, logging=True)
-	print(val)
+	avgval2 = ptr_avg(dfcol, upper, b, epsilon, delta, logging=True)
+	print(avgval2)
+
+	avgval3  = gs_avg(dfcol, upper, epsilon)
+	print(avgval3)
+
 
 # uncomment and align this part at end
 # try:
