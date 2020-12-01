@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 from scipy import stats
 import math
+import time
 import matplotlib.pyplot as plt
 plt.style.use('seaborn-whitegrid')
 
@@ -52,8 +53,8 @@ def gs_sum(df, u, epsilon):
     
     noisy_sum = laplace_mech(df_clipped.sum(), u, .5*epsilon)
    
-    print(noisy_sum)
-    print(' is from gsum')
+    # print(noisy_sum)
+    # print(' is from gsum')
     return noisy_sum 
 
 def f_sum(df):
@@ -218,6 +219,9 @@ def saa_max(df, k, epsilon,l,u, logging=False):
 
 
 def query_execute(df,colval):
+
+	# print(df.head())
+	# return
 	dfcol = df[colval]
 	dfcol = dfcol.dropna(how='all')
 
@@ -242,9 +246,9 @@ def query_execute(df,colval):
 	x= math.ceil(dfcol2.max())
 	
 	plt.plot([laplace_mech(dfcol2.clip(lower=0, upper=i).sum(), i, epsilon_i) for i in range(x)]);
-	# plt.show()
+	plt.show()
 	plt.plot([laplace_mech(dfcol2.clip(lower=0, upper=2**i).sum(), 2**i, epsilon_i) for i in range(15)]);
-	# plt.show()
+	plt.show()
 	# print(x)
 	w = [laplace_mech(dfcol2.clip(lower=0, upper=2**i).sum(), 2**i, epsilon_i) for i in range(15)]#[laplace_mech(dfcol2.clip(lower=0, upper=i).sum(), i, epsilon_i) for i in range(x)]
 	
@@ -272,46 +276,84 @@ def query_execute(df,colval):
 	# for i in b:
 	# 	print(i)
 	
-	print(str(upper)+' is the upper')
+	# print(str(upper)+' is the upper')
 	
 	
 	if aggrfunc == 'sum':
-		print(str(dfcol.sum())+' is the original value of sum')
+		b1 = time.time()
+		summ = dfcol.sum()
+		b2 = time.time()
+		# print(str(dfcol.sum())+' is the original value of sum')
 		# gsum method 
 		epsilon = 1 
-		gs_sum(dfcol, upper, epsilon)
+		gval = gs_sum(dfcol, upper, epsilon)
 		# print(gval)
+		b3 = time.time()
 		#saa
-		saa_sum(dfcol,60, 1, 0,upper,logging=False)
+		sval = saa_sum(dfcol,60, 1, 0,upper,logging=False)
+		b4 = time.time()
+		print('original output:'+str(summ)+' Time taken: '+str(b2-b1))
+		print('GS output: '+str(gval)+' Time taken: '+str(b3-b2))
+		print('SAA output: '+str(sval)+' Time taken: '+str(b4-b3))
+		
 		# print(val)
 	elif aggrfunc == 'avg':
-		print(str(dfcol.mean())+' is the original value')
+		b1 = time.time()
+		mean = dfcol.mean()
+		# print(str(dfcol.mean())+' is the original value')
+		b2 = time.time()
 		avgval = saa_avg_age(dfcol, 60, 1, 0,upper,logging=False)
-		print(avgval)
+		b3 = time.time()
+		# print(avgval)
 		epsilon = 1                # set epsilon = 1
 		delta = 1/(len(df)**2)     # set delta = 1/n^2
 		b = 0.005                  # propose a sensitivity of 0.005
 		avgval2 = ptr_avg(dfcol, upper, b, epsilon, delta, logging=False)
-		print(avgval2)
+		b4 = time.time()
+		# print(avgval2)
 		avgval3  = gs_avg(dfcol, upper, epsilon)
-		print(avgval3)
+		b5 = time.time()
+		# print(avgval3)
+		print('original output:'+str(mean)+' Time taken: '+str(b2-b1))
+		print('Saa output: '+str(avgval)+' Time taken: '+str(b3-b2))
+		print('Ptr output: '+str(avgval2)+' Time taken: '+str(b4-b3))
+		print('GS output: '+str(avgval3)+' Time taken: '+str(b5-b4))
 	elif aggrfunc == 'count':
-		print(str(len(dfcol))+' is the original value')
+		b1 = time.time()
+		length = len(dfcol)
+		b2 = time.time()
+		# print(str(len(dfcol))+' is the original value')
 		epsilon=1
 		cval = gs_count(dfcol, upper, epsilon)
-		print(cval)
-	
+		b3 = time.time()
+		# print(cval)
 		cval2 = saa_count(dfcol, 60, 1, 0,upper,logging=False)
-		print(cval2)
+		b4 = time.time()
+		# print(cval2)
+		print('original output:'+str(length)+' Time taken: '+str(b2-b1))
+		print('GS output: '+str(cval)+' Time taken: '+str(b3-b2))
+		print('SAA output: '+str(cval2)+' Time taken: '+str(b4-b3))
 	elif aggrfunc == 'min':
-		print(str(dfcol.min())+' is the original value')
+		b1 = time.time()
+		mini = dfcol.min()
+		# print(str(dfcol.min())+' is the original value')
+		b2 = time.time()
 		mval = saa_min(dfcol,60, 1, 0,upper,logging=False)
-		print(mval)
+		b3 = time.time()
+		print('original output:'+str(mini)+' Time taken: '+str(b2-b1))
+		print('SAA output: '+str(mval)+' Time taken: '+str(b3-b2))
+		# print(mval)
 	elif aggrfunc == 'max':
-		print(str(dfcol.max())+' is the original value')
+		b1 = time.time()
+		maxi = dfcol.max()
+		# print(str(dfcol.max())+' is the original value')
+		b2 = time.time()
 		mval = saa_max(dfcol,60, 1, 0,upper,logging=False)
-		print(mval)
-
+		b3 = time.time()
+		# print(mval)
+		print('original output:'+str(maxi)+' Time taken: '+str(b2-b1))
+		print('SAA output: '+str(mval)+' Time taken: '+str(b3-b2))
+		
 
 myclient = pymongo.MongoClient("mongodb+srv://admin:admin@cluster1.ajaye.mongodb.net/")
 
@@ -343,7 +385,23 @@ mycol2 = mydb2["clufferedCollection"]
 # x = mycol2.insert_many(mylist)
 # exit(0)
 
-query = "mycol.aggregate([{'$group' : {'_id': '$price', 'total_value':{'$min' : '$total_distance'}, 'some_other_value':{'$avg': '$price' } } }])"
+query1 = "mycol.aggregate([{'$group' : {'_id': '$price', 'total_value':{'$min' : '$total_distance'}, 'some_other_value':{'$avg': '$price' } } }])"
+query2 = "mycol.find({'purchase_date': { '$gt': '2009-12-31','$lt': '2011-01-01'} }, { 'model_id': '1'});"
+
+query3 = "mycol.aggregate([{'$group' : {'_id': ' ', 'total_value':{'$min' : '$total_distance'}, 'some_other_value':{'$avg': '$price' } } }])"
+
+query4 =   "mycol.aggregate([{'$group' : {'_id': ' ', 'total_value':{'$avg' : '$total_distance'} } }])"
+
+query5 =   "mycol.aggregate([{'$group' : {'_id': ' ', 'total_value':{'$sum' : '$price'} } }])"
+
+mycol3 = mydb["car"]
+mycol4 = mydb["card_"]
+query6 = "mycol3.aggregate([{'$group' : {'_id': ' ', 'total_value':{'$avg' : '$curr_condition'} } }])"
+
+query7 = "mycol.aggregate([{'$group' : {'_id': ' ', 'total_value':{'$count' : '$total_distance'} } }])"
+
+query = "mycol.aggregate([{'$group' : {'_id':  ' ', 'total_value':{'$min' : '$total_distance'} } }])"
+
 
 
 if query_aggregate_check(query) == False:
@@ -356,8 +414,11 @@ if query_aggregate_check(query) == False:
 #     print(document.keys())  # print all fields of this document. 
 #     break
 
+# for i in mycol3.find():
+# 	print(i)
+# 	exit(0)
 
-df = pd.DataFrame(list(mycol2.find()))
+df = pd.DataFrame(list(mycol.find()))
 
 
 ind=query.find('$group')+1
@@ -435,3 +496,26 @@ while(ind<len(query) and query.find('$')!=-1):
 # 	print(i)
 # except:
 	# print('Not a valid query')
+
+
+
+
+
+
+
+# Query 1 - 
+# query = "mycol.aggregate([{'$group' : {'_id': ' ', 'total_value':{'$min' : '$total_distance'}, 'some_other_value':{'$avg': '$price' } } }])"
+# min is the aggregation on total_distance field
+# original output:2.11 Time taken: 0.0
+# SAA output: -4.3890231759592915 Time taken: 0.00897526741027832
+
+# avg is the aggregation on price field
+# original output:36.02746 Time taken: 0.0
+# Saa output: 38.23668590197573 Time taken: 0.009000062942504883
+# Ptr output: 36.02767251400291 Time taken: 0.0
+# GS output: 35.2192895148833 Time taken: 0.0009953975677490234
+
+
+
+
+# Query 2
