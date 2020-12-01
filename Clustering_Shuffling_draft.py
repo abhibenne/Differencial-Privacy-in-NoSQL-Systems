@@ -1,5 +1,5 @@
 import pymongo
-
+import sys
 import pprint
 
 
@@ -7,7 +7,7 @@ myclient = pymongo.MongoClient("mongodb+srv://admin:admin@cluster1.ajaye.mongodb
 # print(myclient.list_database_names())
 mydb = myclient["public"]
 mycol = mydb["completeride"]
-print(mydb.list_collection_names())
+# print(mydb.list_collection_names())
 #print(mydb)
 
 
@@ -64,13 +64,13 @@ def cluster(colname):
 	std_val=0
 	for i in mean:
 		mean_val = i['average_value']
-		print(mean_val)
+		# print(mean_val)
 	for i in std:
 		std_val = i['std']
-		print(i)
+		# print(i)
 	
-	for i in mycol2.find():
-		print(i)
+	# for i in mycol2.find():
+	# 	print(i)
 	
 	
 	# RELATIVE ERROR 
@@ -136,7 +136,7 @@ def shuffle(colname):
 	listid = df3['_id']
 	res = dl.assign(_id = listid) 
 
-	values = dl["total_distance"].values
+	values = dl[colname].values
 	ind=0
 	for i in mycol.find():
 		# print(i[colname])
@@ -163,7 +163,16 @@ def shuffle(colname):
 	# mydb2.myCollection.insert(records)
 
 
-colname = "total_distance"
+colname = sys.argv[1] #"total_distance"
+
+
+for i in mycol.find():
+	if colname in i:
+		if(type(i[colname])==float or type(i[colname])==int or type(i[colname])==double):
+			print('Numeric field, can proceed with cluffering')
+		else:
+			print('Not a numerical field, cannot proceed with cluffering')
+		break
 
 cluster(colname)
 shuffle(colname)

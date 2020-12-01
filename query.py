@@ -315,7 +315,7 @@ def query_execute(df,colval):
 		b5 = time.time()
 		# print(avgval3)
 		print('original output:'+str(mean)+' Time taken: '+str(b2-b1))
-		print('Saa output: '+str(avgval)+' Time taken: '+str(b3-b2))
+		print('SAA output: '+str(avgval)+' Time taken: '+str(b3-b2))
 		print('Ptr output: '+str(avgval2)+' Time taken: '+str(b4-b3))
 		print('GS output: '+str(avgval3)+' Time taken: '+str(b5-b4))
 	elif aggrfunc == 'count':
