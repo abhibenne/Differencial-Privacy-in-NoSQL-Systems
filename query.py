@@ -282,16 +282,16 @@ def query_execute(df,colval):
 		gs_sum(dfcol, upper, epsilon)
 		# print(gval)
 		#saa
-		saa_sum(dfcol,60, 1, 0,upper,logging=True)
+		saa_sum(dfcol,60, 1, 0,upper,logging=False)
 		# print(val)
 	elif aggrfunc == 'avg':
 		print(str(dfcol.mean())+' is the original value')
-		avgval = saa_avg_age(dfcol, 60, 1, 0,upper,logging=True)
+		avgval = saa_avg_age(dfcol, 60, 1, 0,upper,logging=False)
 		print(avgval)
 		epsilon = 1                # set epsilon = 1
 		delta = 1/(len(df)**2)     # set delta = 1/n^2
 		b = 0.005                  # propose a sensitivity of 0.005
-		avgval2 = ptr_avg(dfcol, upper, b, epsilon, delta, logging=True)
+		avgval2 = ptr_avg(dfcol, upper, b, epsilon, delta, logging=False)
 		print(avgval2)
 		avgval3  = gs_avg(dfcol, upper, epsilon)
 		print(avgval3)
@@ -301,24 +301,16 @@ def query_execute(df,colval):
 		cval = gs_count(dfcol, upper, epsilon)
 		print(cval)
 	
-		cval2 = saa_count(dfcol, 60, 1, 0,upper,logging=True)
+		cval2 = saa_count(dfcol, 60, 1, 0,upper,logging=False)
 		print(cval2)
 	elif aggrfunc == 'min':
 		print(str(dfcol.min())+' is the original value')
-		mval = saa_min(dfcol,60, 1, 0,upper,logging=True)
+		mval = saa_min(dfcol,60, 1, 0,upper,logging=False)
 		print(mval)
 	elif aggrfunc == 'max':
 		print(str(dfcol.max())+' is the original value')
-		mval = saa_max(dfcol,60, 1, 0,upper,logging=True)
+		mval = saa_max(dfcol,60, 1, 0,upper,logging=False)
 		print(mval)
-	
-
-
-
-
-
-
-
 
 
 myclient = pymongo.MongoClient("mongodb+srv://admin:admin@cluster1.ajaye.mongodb.net/")
@@ -327,8 +319,23 @@ mydb = myclient["public"]
 mycol = mydb["completeride"]
 # print(mydb.list_collection_names())
 
+# client2 = pymongo.MongoClient("localhost:27017")
+# mydb2 = client2["public"]
+# mycol2 = mydb2["example"]
 
-query = "mycol.aggregate([{'$group' : {'_id': '$_id', 'total_value':{'$sum' : '$total_distance'} } }])"
+
+# Simple example
+# mylist = [{'product': "toothbrush", 'total': 4.75, 'customer': "Mike"},
+# {'product': "guitar", 'total': 199.99, 'customer': "Tom"},
+# {'product': "milk", 'total': 11.33, 'customer': "Mike"},
+# {'product': "pizza", 'total': 8.50, 'customer': "Karen"},
+# {'product': "toothbrush", 'total': 4.75, 'customer': "Karen"},
+# {'product': "pizza", 'total': 4.75, 'customer': "Dave"},
+# {'product': "toothbrush", 'total': 4.75, 'customer': "Mike"}]
+# x = mycol2.insert_many(mylist)
+# exit(0)
+
+query = "mycol.aggregate([{'$group' : {'_id': ' ', 'total_value':{'$min' : '$total_distance'}, 'some_other_value':{'$avg': '$price' } } }])"
 
 
 if query_aggregate_check(query) == False:
@@ -342,45 +349,70 @@ if query_aggregate_check(query) == False:
 #     break
 
 
-
-# print(query.find('\'$'))
-p1 = query.find('([')
-p2 = query.find('])')
-group = query[p1+3:p2-1]
-# print(group)
-param = group.split(':')
-# print(param)
-param2 = param[3]
-aggrfunc = param2.strip('{\'$ ')
-# print(aggrfunc)
-param3 = param[4]
-colval = param3[param3.find('$')+1:param3.find('}')-1]
-# print(colval)
-q = query[query.find('_id'):]
-# print(q)
-
-idcol = ''
-if q.find(',')>q.find('$'):
-	idcol = q[q.find('$')+1:q.find(',')-1]
-print(idcol)
-
 df = pd.DataFrame(list(mycol.find()))
 
 
-if idcol=='':
-	query_execute(df,colval)
-else:
-	# print(df[idcol].unique())
-	for value in df[idcol].unique():
-		print(value)
-		is_value = df[idcol]==value
-		subdf = df[is_value]
-		subdf = subdf.dropna(subset=[colval])
-		# subdf = subdf[subdf[colval].notna()]
-		# print(subdf.head(2))
-		if (len(subdf)>0):
-			query_execute(subdf,colval)
+q = query[query.find('_id'):]
+idcol = ''
+if q.find(',')>q.find('$'):
+	idcol = q[q.find('$')+1:q.find(',')-1]
 
+
+ind=query.find('$group')+1
+query = query[ind:]
+while(ind<len(query) and query.find('$')!=-1):
+	# query = query[ind:]
+	ind = query.find('$')+1
+	# print(query)
+	# print(ind)
+	query = query[ind:]
+	aggrfunc = query[:query.find('\'')]
+	ind = query.find('$')+1
+	query = query[ind:]
+	colval = query[:query.find('\'')]
+
+	print(aggrfunc+' is the aggregation on '+colval+' field')
+	# print(query)
+	# continue
+
+
+
+	if idcol=='':
+		query_execute(df,colval)
+	else:
+		# print(df[idcol].unique())
+		for value in df[idcol].unique():
+			print(value)
+			is_value = df[idcol]==value
+			subdf = df[is_value]
+			subdf = subdf.dropna(subset=[colval])
+			# subdf = subdf[subdf[colval].notna()]
+			# print(subdf.head(2))
+			if (len(subdf)>0):
+				query_execute(subdf,colval)
+			else:
+				print('Nan')
+
+
+
+
+
+
+
+
+
+# p1 = query.find('$group')
+# p2 = query.find('])')
+# group = query[p1+3:p2-1]
+# # print(group)
+# param = group.split(':')
+# # print(param)
+# param2 = param[3]
+# aggrfunc = param2.strip('{\'$ ')
+# # print(aggrfunc)
+# param3 = param[4]
+# colval = param3[param3.find('$')+1:param3.find('}')-1]
+# print(colval)
 
 # uncomment and align this part at end
 # try:
