@@ -9,7 +9,7 @@ import math
 import matplotlib.pyplot as plt
 plt.style.use('seaborn-whitegrid')
 
-def query_check(query):
+def query_aggregate_check(query):
 	pos1 = query.find('.')
 	pos2 = query.find('(')
 	if query[pos1+1:pos2]=='aggregate':
@@ -216,6 +216,111 @@ def saa_max(df, k, epsilon,l,u, logging=False):
     noisy_mean = laplace_mech(max(clipped_answers), (u-l)/k, epsilon)
     return noisy_mean
 
+
+def query_execute(df,colval):
+	dfcol = df[colval]
+	dfcol = dfcol.dropna(how='all')
+
+
+	# dfcol = dfcol[dfcol.notna()]
+	# if(len(dfcol) == 0):
+	# 	return
+
+	# print(dfcol.head())
+	# dfcol.sort_values(ascending=True)
+	
+	# print(dfcol.head())
+	z_scores = stats.zscore(dfcol)
+	
+	abs_z_scores = np.abs(z_scores)
+	filtered_entries = (abs_z_scores < 3)
+	dfcol2 = dfcol[filtered_entries]
+
+	if len(dfcol2)==0:
+		print('Single value so not given')
+		return 
+	x= math.ceil(dfcol2.max())
+	
+	plt.plot([laplace_mech(dfcol2.clip(lower=0, upper=i).sum(), i, epsilon_i) for i in range(x)]);
+	# plt.show()
+	plt.plot([laplace_mech(dfcol2.clip(lower=0, upper=2**i).sum(), 2**i, epsilon_i) for i in range(15)]);
+	# plt.show()
+	# print(x)
+	w = [laplace_mech(dfcol2.clip(lower=0, upper=2**i).sum(), 2**i, epsilon_i) for i in range(15)]#[laplace_mech(dfcol2.clip(lower=0, upper=i).sum(), i, epsilon_i) for i in range(x)]
+	
+	# w = [laplace_mech(dfcol2.clip(lower=0, upper=i).sum(), i, epsilon_i) for i in range(x)]
+	
+	
+	# mini = 1000000
+	# index = 0
+	# b = [0]*len(w)
+	# b[0] = w[0]
+	value=0
+	for i in range(1,len(w)-1):
+		if w[i]<w[i-1]:
+			value=i
+			break
+	    # b[i] = w[i]-w[i-1]
+	# value = 0
+	# mini = 100000
+	# for i in range(len(w)-1,0):
+	# 	if(b[i]<mini):
+	# 		mini = b[i]
+	# 		value = i
+	upper = 2**value #value
+	
+	# for i in b:
+	# 	print(i)
+	
+	print(str(upper)+' is the upper')
+	
+	
+	if aggrfunc == 'sum':
+		print(str(dfcol.sum())+' is the original value of sum')
+		# gsum method 
+		epsilon = 1 
+		gs_sum(dfcol, upper, epsilon)
+		# print(gval)
+		#saa
+		saa_sum(dfcol,60, 1, 0,upper,logging=True)
+		# print(val)
+	elif aggrfunc == 'avg':
+		print(str(dfcol.mean())+' is the original value')
+		avgval = saa_avg_age(dfcol, 60, 1, 0,upper,logging=True)
+		print(avgval)
+		epsilon = 1                # set epsilon = 1
+		delta = 1/(len(df)**2)     # set delta = 1/n^2
+		b = 0.005                  # propose a sensitivity of 0.005
+		avgval2 = ptr_avg(dfcol, upper, b, epsilon, delta, logging=True)
+		print(avgval2)
+		avgval3  = gs_avg(dfcol, upper, epsilon)
+		print(avgval3)
+	elif aggrfunc == 'count':
+		print(str(len(dfcol))+' is the original value')
+		epsilon=1
+		cval = gs_count(dfcol, upper, epsilon)
+		print(cval)
+	
+		cval2 = saa_count(dfcol, 60, 1, 0,upper,logging=True)
+		print(cval2)
+	elif aggrfunc == 'min':
+		print(str(dfcol.min())+' is the original value')
+		mval = saa_min(dfcol,60, 1, 0,upper,logging=True)
+		print(mval)
+	elif aggrfunc == 'max':
+		print(str(dfcol.max())+' is the original value')
+		mval = saa_max(dfcol,60, 1, 0,upper,logging=True)
+		print(mval)
+	
+
+
+
+
+
+
+
+
+
 myclient = pymongo.MongoClient("mongodb+srv://admin:admin@cluster1.ajaye.mongodb.net/")
 
 mydb = myclient["public"]
@@ -223,122 +328,64 @@ mycol = mydb["completeride"]
 # print(mydb.list_collection_names())
 
 
-query = "mycol.aggregate([{'$group' : {'_id': '', 'total_distance':{'$max' : 1} } }])"
-# "mycol.find({},{'_id':2}).limit(10)" 
-# sys.argv[1]
+query = "mycol.aggregate([{'$group' : {'_id': '$_id', 'total_value':{'$sum' : '$total_distance'} } }])"
 
 
-if query_check(query) == False:
+if query_aggregate_check(query) == False:
 	print('Query is not aggregate')
 	exit(0)
+
+
+# cursor = mycol.find({})
+# for document in cursor: 
+#     print(document.keys())  # print all fields of this document. 
+#     break
+
+
 
 # print(query.find('\'$'))
 p1 = query.find('([')
 p2 = query.find('])')
 group = query[p1+3:p2-1]
 # print(group)
-param = group.split(':')[2:]
+param = group.split(':')
 # print(param)
-colval = param[0].split(',')[1]
-colval = colval.strip('\' ')
-# print(colval)
-# print(param[1].strip('{\'$ '))
-aggrfunc = param[1].strip('{\'$ ')
+param2 = param[3]
+aggrfunc = param2.strip('{\'$ ')
 # print(aggrfunc)
+param3 = param[4]
+colval = param3[param3.find('$')+1:param3.find('}')-1]
+# print(colval)
+q = query[query.find('_id'):]
+# print(q)
+
+idcol = ''
+if q.find(',')>q.find('$'):
+	idcol = q[q.find('$')+1:q.find(',')-1]
+print(idcol)
 
 df = pd.DataFrame(list(mycol.find()))
 
-# print(df.head())
-dfcol = df[colval]
 
-dfcol.sort_values(ascending=True)
+if idcol=='':
+	query_execute(df,colval)
+else:
+	# print(df[idcol].unique())
+	for value in df[idcol].unique():
+		print(value)
+		is_value = df[idcol]==value
+		subdf = df[is_value]
+		subdf = subdf.dropna(subset=[colval])
+		# subdf = subdf[subdf[colval].notna()]
+		# print(subdf.head(2))
+		if (len(subdf)>0):
+			query_execute(subdf,colval)
 
-# print(dfcol.head())
-z_scores = stats.zscore(dfcol)
-
-abs_z_scores = np.abs(z_scores)
-filtered_entries = (abs_z_scores < 3)
-dfcol2 = dfcol[filtered_entries]
-
-# print(dfcol2.head())
-
-x= math.ceil(dfcol2.max())
-
-plt.plot([laplace_mech(dfcol2.clip(lower=0, upper=i).sum(), i, epsilon_i) for i in range(x)]);
-# plt.show()
-plt.plot([laplace_mech(dfcol2.clip(lower=0, upper=2**i).sum(), 2**i, epsilon_i) for i in range(15)]);
-# plt.show()
-# print(x)
-w = [laplace_mech(dfcol2.clip(lower=0, upper=2**i).sum(), 2**i, epsilon_i) for i in range(15)]#[laplace_mech(dfcol2.clip(lower=0, upper=i).sum(), i, epsilon_i) for i in range(x)]
-
-# w = [laplace_mech(dfcol2.clip(lower=0, upper=i).sum(), i, epsilon_i) for i in range(x)]
-
-
-# mini = 1000000
-# index = 0
-# b = [0]*len(w)
-# b[0] = w[0]
-value=0
-for i in range(1,len(w)-1):
-	if w[i]<w[i-1]:
-		value=i
-		break
-    # b[i] = w[i]-w[i-1]
-# value = 0
-# mini = 100000
-# for i in range(len(w)-1,0):
-# 	if(b[i]<mini):
-# 		mini = b[i]
-# 		value = i
-upper = 2**value #value
-
-# for i in b:
-# 	print(i)
-
-print(str(upper)+' is the upper')
-
-
-if aggrfunc == 'sum':
-	print(str(dfcol.sum())+' is the original value of sum')
-	# gsum method 
-	epsilon = 1 
-	gs_sum(dfcol, upper, epsilon)
-	# print(gval)
-	#saa
-	saa_sum(dfcol,60, 1, 0,upper,logging=True)
-	# print(val)
-elif aggrfunc == 'avg':
-	print(str(dfcol.mean())+' is the original value')
-	avgval = saa_avg_age(dfcol, 60, 1, 0,upper,logging=True)
-	print(avgval)
-	epsilon = 1                # set epsilon = 1
-	delta = 1/(len(df)**2)     # set delta = 1/n^2
-	b = 0.005                  # propose a sensitivity of 0.005
-	avgval2 = ptr_avg(dfcol, upper, b, epsilon, delta, logging=True)
-	print(avgval2)
-	avgval3  = gs_avg(dfcol, upper, epsilon)
-	print(avgval3)
-elif aggrfunc == 'count':
-	print(str(len(dfcol))+' is the original value')
-	epsilon=1
-	cval = gs_count(dfcol, upper, epsilon)
-	print(cval)
-
-	cval2 = saa_count(dfcol, 60, 1, 0,upper,logging=True)
-	print(cval2)
-elif aggrfunc == 'min':
-	print(str(dfcol.min())+' is the original value')
-	mval = saa_min(dfcol,60, 1, 0,upper,logging=True)
-	print(mval)
-elif aggrfunc == 'max':
-	print(str(dfcol.max())+' is the original value')
-	mval = saa_max(dfcol,60, 1, 0,upper,logging=True)
-	print(mval)
 
 # uncomment and align this part at end
 # try:
 # collection_cursor = eval(query)
-# print(collection_cursor)
+# # print(collection_cursor)
 # for i in collection_cursor:
 # 	print(i)
 # except:
