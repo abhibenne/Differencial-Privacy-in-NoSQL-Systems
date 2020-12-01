@@ -21,12 +21,13 @@ mycol2 = mydb2["relativeError"]
 # total_distance is the field i tested it on, can replace with variable
 # before that a simple numeric check to be added
 # date functionality to be added
-def cluster():
+def cluster(colname):
 	# print(mycol.find_one())
+	mycol2.delete_many( { } );
 	mean = mycol.aggregate([  
 	  {
 	    "$match": {
-	      "total_distance": {
+	      colname: {
 	        "$exists": "true"
 	      }
 	    }
@@ -34,8 +35,8 @@ def cluster():
 	  {
 	    "$group": {
 	      "_id": "_id",
-	      "average_distance": {
-	        "$avg": "$total_distance"
+	      "average_value": {
+	        "$avg": "$"+colname
 	      }
 	    }
 	  }  
@@ -44,7 +45,7 @@ def cluster():
 	std = st = mycol.aggregate([  
 	  {
 	    "$match": {
-	      "total_distance": {
+	      colname: {
 	        "$exists": "true"
 	      }
 	    }
@@ -53,7 +54,7 @@ def cluster():
 	    "$group": {
 	      "_id": "_id",
 	      "std": {
-	        "$stdDevPop": "$total_distance"
+	        "$stdDevPop": "$"+colname
 	      }
 	    }
 	  }  
@@ -62,7 +63,7 @@ def cluster():
 	mean_val=0
 	std_val=0
 	for i in mean:
-		mean_val = i['average_distance']
+		mean_val = i['average_value']
 		print(mean_val)
 	for i in std:
 		std_val = i['std']
@@ -71,28 +72,26 @@ def cluster():
 	for i in mycol2.find():
 		print(i)
 	
-	'''
+	
 	# RELATIVE ERROR 
 	
 	for post in mycol.find():
-		relative_error = (float(mean_val - post['total_distance'])/std_val)
+		relative_error = (float(mean_val - post[colname])/std_val)
 		tdict = {}
-		tdict['total_distance'] = post['total_distance']
+		tdict[colname] = post[colname]
 		tdict['relative_error'] = relative_error
-		# print(relative_error)
-		# print(tdict)
 		x=mycol2.insert_one(tdict)
-		# break;
-		# pprint.pprint(post['destination'])
-		# break
-	'''
+	
 import pandas as pd
 import random
 import json
 
 mycol3 = mydb2["alteredRelativeError"]
+mycol4 = mydb2["clufferedCollection"]
 
-def shuffle():
+
+def shuffle(colname):
+	mycol4.delete_many( { } );
 	df2 = pd.DataFrame(list(mycol2.find()))
 	# print(df2.head())
 	list_index=[]
@@ -103,7 +102,7 @@ def shuffle():
 	df3 = pd.concat([s1,df2], axis=1)
 	for i, trial in df3.iterrows():
 		df3.loc[i, "relative_error"] = round(df3.loc[i, "relative_error"],1)
-	df4=df3.groupby(['relative_error'])['total_distance'].apply(list).reset_index(name='values')
+	df4=df3.groupby(['relative_error'])[colname].apply(list).reset_index(name='values')
 	shuffle=df4["values"]
 	for i in range(len(shuffle)):
 		random.shuffle(shuffle[i])
@@ -111,11 +110,10 @@ def shuffle():
 	first=df5['index_values']
 	ld=pd.DataFrame(first, columns =["index_values"])
 	ld1=pd.concat([df4,ld], axis=1, ignore_index=True)
-	ld1.columns=["relative_error",'total_distance',"index_values"]
-	Column_name = 'total_distance'
+	ld1.columns=["relative_error",colname,"index_values"]
 	check=ld1["index_values"]
 	group_by_values=ld1["relative_error"]
-	travel_distance=ld1[Column_name]
+	travel_distance=ld1[colname]
     
 	list_index_values=[]
 	list_group_by_values=[]
@@ -132,21 +130,43 @@ def shuffle():
 	for a in range(len(ld1)):
 	    for b in range(len(check[a])):
 	        travel_distance_values.append(travel_distance[a][b])
-	shuffled_dataframe = pd.DataFrame({'index': list_index_values,Column_name: travel_distance_values,'relative_error': list_group_by_values})
+	shuffled_dataframe = pd.DataFrame({'index': list_index_values,colname: travel_distance_values,'relative_error': list_group_by_values})
 	final = shuffled_dataframe.sort_values(by='index', ascending=True)
 	dl=final.drop(columns=["index"], axis=1)
 	listid = df3['_id']
 	res = dl.assign(_id = listid) 
-	records = json.loads(dl.T.to_json()).values()
-	mycol3.insert_many(records)
+
+	values = dl["total_distance"].values
+	ind=0
+	for i in mycol.find():
+		# print(i[colname])
+		tdict = i.copy()
+		# print(values[ind])
+		tdict[colname] = values[ind]
+		ind+=1
+		x=mycol4.insert_one(tdict)
+		# print(tdict[colname])
+		# print(i[colname])
+		# break
+
+
+
+	# records = json.loads(dl.T.to_json()).values()
+	# mycol3.insert_many(records)
+
+
+
 
 	# TESTING WHAT IS INSERTED
 	# for i in mycol3.find():
 	# 	print(i);break
 	# mydb2.myCollection.insert(records)
 
-# cluster()
-# shuffle()
+
+colname = "total_distance"
+
+cluster(colname)
+shuffle(colname)
 
 
 

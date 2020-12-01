@@ -23,11 +23,13 @@ def isKAnonymized(df, k):
 def generalize(df, depths):
     return df.apply(lambda x: x.apply(lambda y: int(int(y/(10**depths[x.name]))*(10**depths[x.name]))))
 
+
+
 def kAnonymity():
 	df = pd.DataFrame(list(mycol.find()))
 	df1 = df[['_id','total_distance']].copy()
 	df3 = df1.drop(['_id'],axis=1)
-	depths = { 'total_distance':1 }
+	depths = { 'total_distance': 1 }
 	df4 = generalize(df3, depths)
 	df4['generalized_distance'] = df4['total_distance']
 	df4['total_distance'] = df1['total_distance']

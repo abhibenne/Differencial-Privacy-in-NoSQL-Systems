@@ -317,6 +317,14 @@ myclient = pymongo.MongoClient("mongodb+srv://admin:admin@cluster1.ajaye.mongodb
 
 mydb = myclient["public"]
 mycol = mydb["completeride"]
+
+# was putting the output to my localhost 
+client2 = pymongo.MongoClient("localhost:27017")
+mydb2 = client2["public"]
+mycol2 = mydb2["clufferedCollection"]
+
+
+
 # print(mydb.list_collection_names())
 
 # client2 = pymongo.MongoClient("localhost:27017")
@@ -335,7 +343,7 @@ mycol = mydb["completeride"]
 # x = mycol2.insert_many(mylist)
 # exit(0)
 
-query = "mycol.aggregate([{'$group' : {'_id': ' ', 'total_value':{'$min' : '$total_distance'}, 'some_other_value':{'$avg': '$price' } } }])"
+query = "mycol.aggregate([{'$group' : {'_id': '$price', 'total_value':{'$min' : '$total_distance'}, 'some_other_value':{'$avg': '$price' } } }])"
 
 
 if query_aggregate_check(query) == False:
@@ -349,17 +357,20 @@ if query_aggregate_check(query) == False:
 #     break
 
 
-df = pd.DataFrame(list(mycol.find()))
-
-
-q = query[query.find('_id'):]
-idcol = ''
-if q.find(',')>q.find('$'):
-	idcol = q[q.find('$')+1:q.find(',')-1]
+df = pd.DataFrame(list(mycol2.find()))
 
 
 ind=query.find('$group')+1
 query = query[ind:]
+q = query[query.find('_id'):]
+
+idcol = ''
+if q.find(',')>q.find('$'):
+	idcol = q[q.find('$')+1:q.find(',')-1]
+	query = q[q.find('$')+1:]
+	print(query+' is query')
+
+
 while(ind<len(query) and query.find('$')!=-1):
 	# query = query[ind:]
 	ind = query.find('$')+1
@@ -371,7 +382,7 @@ while(ind<len(query) and query.find('$')!=-1):
 	query = query[ind:]
 	colval = query[:query.find('\'')]
 
-	print(aggrfunc+' is the aggregation on '+colval+' field')
+	print(aggrfunc+' is the aggregation on '+colval+' field',sep=' ')
 	# print(query)
 	# continue
 
@@ -379,7 +390,9 @@ while(ind<len(query) and query.find('$')!=-1):
 
 	if idcol=='':
 		query_execute(df,colval)
+		print()
 	else:
+		print(' and group by '+idcol)
 		# print(df[idcol].unique())
 		for value in df[idcol].unique():
 			print(value)
